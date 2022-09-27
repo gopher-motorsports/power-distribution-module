@@ -66,7 +66,8 @@ TIM_HandleTypeDef htim10;
 UART_HandleTypeDef huart2;
 
 osThreadId taskMain_LoopHandle;
-osThreadId taskGCAN_HardwaHandle;
+osThreadId taskGCAN_TXHandle;
+osThreadId taskGCAN_RXHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -83,7 +84,8 @@ static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM10_Init(void);
 void task_main_loop(void const * argument);
-void task_gcan_hw(void const * argument);
+void taskGCAN_TX_loop(void const * argument);
+void taskGCAN_RX_loop(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -244,9 +246,13 @@ int main(void)
   osThreadDef(taskMain_Loop, task_main_loop, osPriorityNormal, 0, 256);
   taskMain_LoopHandle = osThreadCreate(osThread(taskMain_Loop), NULL);
 
-  /* definition and creation of taskGCAN_Hardwa */
-  osThreadDef(taskGCAN_Hardwa, task_gcan_hw, osPriorityNormal, 0, 256);
-  taskGCAN_HardwaHandle = osThreadCreate(osThread(taskGCAN_Hardwa), NULL);
+  /* definition and creation of taskGCAN_TX */
+  osThreadDef(taskGCAN_TX, taskGCAN_TX_loop, osPriorityNormal, 0, 256);
+  taskGCAN_TXHandle = osThreadCreate(osThread(taskGCAN_TX), NULL);
+
+  /* definition and creation of taskGCAN_RX */
+  osThreadDef(taskGCAN_RX, taskGCAN_RX_loop, osPriorityIdle, 0, 256);
+  taskGCAN_RXHandle = osThreadCreate(osThread(taskGCAN_RX), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -993,22 +999,42 @@ void task_main_loop(void const * argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_task_gcan_hw */
+/* USER CODE BEGIN Header_taskGCAN_TX_loop */
 /**
-* @brief Function implementing the taskGCAN_Hardwa thread.
+* @brief Function implementing the taskGCAN_TX thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_task_gcan_hw */
-void task_gcan_hw(void const * argument)
+/* USER CODE END Header_taskGCAN_TX_loop */
+void taskGCAN_TX_loop(void const * argument)
 {
-  /* USER CODE BEGIN task_gcan_hw */
+  /* USER CODE BEGIN taskGCAN_TX_loop */
   /* Infinite loop */
   for(;;)
   {
+	  gopherCAN_tx_service_task();
+	  osDelay(1);
+  }
+  /* USER CODE END taskGCAN_TX_loop */
+}
+
+/* USER CODE BEGIN Header_taskGCAN_RX_loop */
+/**
+* @brief Function implementing the taskGCAN_RX thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_taskGCAN_RX_loop */
+void taskGCAN_RX_loop(void const * argument)
+{
+  /* USER CODE BEGIN taskGCAN_RX_loop */
+  /* Infinite loop */
+  for(;;)
+  {
+	gopherCAN_rx_buffer_service_task();
     osDelay(1);
   }
-  /* USER CODE END task_gcan_hw */
+  /* USER CODE END taskGCAN_RX_loop */
 }
 
 /**
@@ -1026,6 +1052,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM6) {
     HAL_IncTick();
+  } else {
+	  DAQ_TimerCallback(htim);
   }
   /* USER CODE BEGIN Callback 1 */
 
