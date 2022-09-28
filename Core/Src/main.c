@@ -994,6 +994,7 @@ void task_main_loop(void const * argument)
 
 		HAL_UART_Transmit(&huart2, msg, strlen((char*)msg), HAL_MAX_DELAY);
 	   }
+	  // code to queue current vals to gopher sense
 	  osDelay(1);
   }
   /* USER CODE END 5 */
