@@ -43,6 +43,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define STD_DELAY 100
+// sns pin 500 ohm
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
