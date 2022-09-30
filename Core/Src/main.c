@@ -95,8 +95,8 @@ void taskGCAN_RX_loop(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-uint16_t adc1_buf[3000];
-uint16_t adc3_buf[3000];
+//uint16_t adc1_buf[3000];
+//uint16_t adc3_buf[3000];
 CAN_HandleTypeDef* example_hcan;
 
 /* Status of Channels
@@ -128,7 +128,8 @@ uint16_t enable_pin[] = {EN0_Pin,EN1_Pin,EN2_Pin,EN3_Pin,EN4_Pin,
 
 /* Resistor value in kOhm for sense functions */
 
-float currentSense(uint16_t adc, uint16_t resistor){
+float currentSense(uint16_t adc, uint16_t resistor)
+{
     /* Returns channel current in mA */
 	if(adc>4095) return 0;
 	return (float) (3.3*adc*4600)/(4095*resistor);
@@ -147,6 +148,21 @@ float tempSense(uint16_t adc, uint16_t resistor){
 	return (float) (((3.3*adc)/(4095*resistor))/0.0112 + 25.0);
 
 }
+
+void setCurrentSense()
+{  //Fault sense
+	HAL_GPIO_WritePin(SEL1_GPIO_Port, SEL1_Pin, RESET);
+    HAL_GPIO_WritePin(SEL2_GPIO_Port, SEL2_Pin, RESET);
+}
+void setVoltageSense(){
+	HAL_GPIO_WritePin(SEL1_GPIO_Port, SEL1_Pin, SET);
+    HAL_GPIO_WritePin(SEL2_GPIO_Port, SEL2_Pin, SET);
+}
+void setTempSense(){
+	HAL_GPIO_WritePin(SEL1_GPIO_Port, SEL1_Pin, SET);
+	HAL_GPIO_WritePin(SEL2_GPIO_Port, SEL2_Pin, RESET);
+}
+
 
 /* USER CODE END 0 */
 
@@ -193,11 +209,6 @@ int main(void)
   	// init gopher sense
   	// need to properly configure
   	DAM_init(&hcan1, NULL, &hadc1, NULL, &hadc3, &htim10, STATUS_LED_GPIO_Port, STATUS_LED_Pin);
-
-  	//Startup short circuit protection to be implemented
-
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc1_buf, 3000);
-	HAL_ADC_Start_DMA(&hadc3, (uint32_t*)adc3_buf, 3000);
 
 	HAL_GPIO_WritePin(DIA_EN_GPIO_Port, DIA_EN_Pin, RESET);
 
@@ -906,10 +917,6 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-
-}
-
 void updateChannel(){
 	for(int i = 0; i<20; i++){
 		if(channelStatus[i] == 0){
@@ -929,19 +936,6 @@ uint16_t ifEssentialChannel(uint16_t channel){
 	return 0;
 }
 
-void setCurrentSense(){  //Fault sense
-	HAL_GPIO_WritePin(SEL1_GPIO_Port, SEL1_Pin, RESET);
-    HAL_GPIO_WritePin(SEL2_GPIO_Port, SEL2_Pin, RESET);
-}
-void setVoltageSense(){
-	HAL_GPIO_WritePin(SEL1_GPIO_Port, SEL1_Pin, SET);
-    HAL_GPIO_WritePin(SEL2_GPIO_Port, SEL2_Pin, SET);
-}
-void setTempSense(){
-	HAL_GPIO_WritePin(SEL1_GPIO_Port, SEL1_Pin, SET);
-	HAL_GPIO_WritePin(SEL2_GPIO_Port, SEL2_Pin, RESET);
-}
-
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_task_main_loop */
@@ -954,48 +948,19 @@ void setTempSense(){
 void task_main_loop(void const * argument)
 {
   /* USER CODE BEGIN 5 */
-  static unsigned int last_tx_UART = 0;
   static unsigned int last_tx_Reset = 0;
   /* Infinite loop */
   for(;;)
   {
 
-	  if(HAL_GetTick() - last_tx_Reset >= (STD_DELAY*20)){                //Reset all states after 20*STD_DELAY milliseconds
+	  // Reset all states after 20*STD_DELAY milliseconds
+	  if(HAL_GetTick() - last_tx_Reset >= (STD_DELAY*20))
+	  {
 		  for(uint16_t j = 0; j<20; j++){
 			  channelStatus[j] = 0;
 		  }
 		  last_tx_Reset = HAL_GetTick();
 	  }
-
-	  uint8_t msg[240];
-
-	             //Current and Fault Sense
-	  for(uint16_t i = 0; i<10; i++){       // Check if ADC is more than 65% then fault
-		  if(adc3_buf[i]>3600){
-			  if(!ifEssentialChannel(i)) channelStatus[i] = 1;
-		  }
-		  if(adc1_buf[i]>3600){
-			  if(!ifEssentialChannel(i+10)) channelStatus[i+10] = 1;
-		  }
-	  }
-
-	  //updateChannel();
-
-	  if (HAL_GetTick() - last_tx_UART >= STD_DELAY)
-	   {
-		  last_tx_UART = HAL_GetTick();
-
-		sprintf((char*)msg, "Raw ADC:\r\n");
-		HAL_UART_Transmit(&huart2, msg, strlen((char*)msg), HAL_MAX_DELAY);
-		sprintf((char*)msg, "%4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d %4d\r\n\n",
-				adc3_buf[0],adc3_buf[1],adc3_buf[2],adc3_buf[3],adc3_buf[4],
-				adc3_buf[5],adc3_buf[6],adc3_buf[7],adc3_buf[8],adc3_buf[9],
-				adc1_buf[0],adc1_buf[1],adc1_buf[2],adc1_buf[3],adc1_buf[4],
-				adc1_buf[5],adc1_buf[6],adc1_buf[7],adc1_buf[8],adc1_buf[9]);
-
-		HAL_UART_Transmit(&huart2, msg, strlen((char*)msg), HAL_MAX_DELAY);
-	   }
-	  // code to queue current vals to gopher sense
 	  osDelay(1);
   }
   /* USER CODE END 5 */
