@@ -210,7 +210,7 @@ int main(void)
   	// need to properly configure
   	DAM_init(&hcan1, NULL, &hadc1, NULL, &hadc3, &htim10, STATUS_LED_GPIO_Port, STATUS_LED_Pin);
 
-	HAL_GPIO_WritePin(DIA_EN_GPIO_Port, DIA_EN_Pin, RESET);
+	HAL_GPIO_WritePin(DIA_EN_GPIO_Port, DIA_EN_Pin, SET);
 
 	HAL_GPIO_WritePin(EN0_GPIO_Port,  EN0_Pin,  SET);
 	HAL_GPIO_WritePin(EN1_GPIO_Port,  EN1_Pin,  SET);
