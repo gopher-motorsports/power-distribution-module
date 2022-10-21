@@ -948,11 +948,40 @@ uint16_t ifEssentialChannel(uint16_t channel){
 void task_main_loop(void const * argument)
 {
   /* USER CODE BEGIN 5 */
+	static U32 button_last_req_time = 0;
+	U32 this_tick = 0;
 
   /* Infinite loop */
   for(;;)
   {
+	  this_tick = HAL_GetTick();
 
+	  // If the front DRS button is being held down, trun off pumps and fans
+
+	  // request every 100ms
+	  if (this_tick - button_last_req_time >= 100)
+	  {
+		  request_parameter(PRIO_LOW, TCM_ID, SW_AERO_REAR_ID);
+		  button_last_req_time = this_tick;
+	  }
+
+	  // if the front aero button is being pressed and it is less than 200ms
+	  // since the last response, turn off the pump and fans
+	  if (sw_aero_rear.data == 1 && this_tick - sw_aero_rear.last_rx <= 200)
+	  {
+	      HAL_GPIO_WritePin(EN0_GPIO_Port, EN0_Pin, RESET);
+		  HAL_GPIO_WritePin(EN14_GPIO_Port, EN14_Pin, RESET);
+		  HAL_GPIO_WritePin(EN15_GPIO_Port, EN15_Pin, RESET);
+		  HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin, RESET);
+	  }
+	  else
+	  {
+		  // keep these channels on, ECU will PWM
+		  HAL_GPIO_WritePin(EN0_GPIO_Port, EN0_Pin, SET);
+		  HAL_GPIO_WritePin(EN14_GPIO_Port, EN14_Pin, SET);
+		  HAL_GPIO_WritePin(EN15_GPIO_Port, EN15_Pin, SET);
+		  HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin, SET);
+	  }
 
 	  osDelay(1);
   }
